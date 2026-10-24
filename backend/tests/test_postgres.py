@@ -3,9 +3,10 @@
 import asyncio
 import os
 from datetime import timedelta
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
 from app.db import Base
@@ -19,12 +20,17 @@ def postgres_factory():
     url = os.getenv("TEST_DATABASE_URL")
     if not url:
         pytest.skip("TEST_DATABASE_URL is not configured")
-    engine = create_engine(url)
-    Base.metadata.drop_all(engine)
+    schema = f"test_{uuid4().hex}"
+    admin = create_engine(url)
+    with admin.begin() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    engine = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})
     Base.metadata.create_all(engine)
     yield sessionmaker(engine, expire_on_commit=False)
-    Base.metadata.drop_all(engine)
     engine.dispose()
+    with admin.begin() as connection:
+        connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+    admin.dispose()
 
 
 async def test_workers_skip_locked_and_persist(postgres_factory):
