@@ -14,6 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.db import get_session, utcnow
+from app.github import activity_service
 from app.models import Check, Incident, Monitor
 from app.schemas import MonitorInput
 
@@ -200,3 +201,14 @@ def history(
         "uptime_percent": round(successes / total * 100, 2) if total else None,
         "since": since,
     }
+
+
+@app.get("/api/monitors/{monitor_id}/activity", dependencies=[Depends(authorize)])
+async def activity(monitor_id: int, session: Session = Depends(get_session)):
+    monitor = session.get(Monitor, monitor_id)
+    if monitor is None:
+        raise HTTPException(404, "Monitor not found")
+    repository = monitor.repository
+    if not repository:
+        return {"repository": None, "notice": "Connect a repository to see investigation clues."}
+    return await activity_service.get(repository)
