@@ -85,7 +85,7 @@ async def test_probe_timeout_redirect_and_body_limit(monkeypatch):
 
     monkeypatch.setattr(module, "resolve_destination", test_resolver)
     try:
-        base = f"http://127.0.0.1:{port}"
+        base = f"http://probe.example:{port}"
         assert (await probe(base + "/ok", 200, 1, Settings())).success
         assert (await probe(base + "/redirect", 200, 1, Settings())).error == "redirect_blocked"
         assert "/private" not in calls

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,7 @@ class Settings(BaseSettings):
     api_token: str = "local-development-token-change-me"
     environment: str = "development"
     allow_demo: bool = False
+    demo_host: Literal["demo", "127.0.0.1"] = "demo"
     github_token: str = ""
 
     @model_validator(mode="after")

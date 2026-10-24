@@ -50,6 +50,7 @@ async def test_workers_skip_locked_and_persist(postgres_factory):
     assert calls == 1
     with postgres_factory() as session:
         assert session.get(Monitor, monitor_id).failure_count == 1
+        assert session.get(Monitor, monitor_id).next_check_at.utcoffset().total_seconds() == 0
         assert session.scalar(select(func.count()).select_from(Check)) == 1
     # A fresh worker sees the committed due time and persisted failure count.
     assert await run_once(postgres_factory, checker, lambda: NOW + timedelta(seconds=30))

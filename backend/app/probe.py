@@ -32,7 +32,7 @@ async def resolve_destination(url: str, config: Settings):
     demo = (
         config.environment == "development"
         and config.allow_demo
-        and url == "http://demo:8001/health"
+        and url == f"http://{config.demo_host}:8001/health"
     )
     if port not in {80, 443} and not demo:
         raise UnsafeDestination("port is not allowed")
