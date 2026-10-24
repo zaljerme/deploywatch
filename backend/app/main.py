@@ -200,4 +200,3 @@ def history(
         "uptime_percent": round(successes / total * 100, 2) if total else None,
         "since": since,
     }
-
