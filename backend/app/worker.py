@@ -56,8 +56,16 @@ async def main():
         try:
             if not await run_once():
                 await asyncio.sleep(1)
-        except Exception:
-            logger.exception('{"event":"worker_iteration_failed"}')
+        except Exception as exc:
+            logger.error(
+                json.dumps(
+                    {
+                        "event": "worker_iteration_failed",
+                        "exception_type": type(exc).__name__,
+                        "timestamp": utcnow().isoformat(),
+                    }
+                )
+            )
             await asyncio.sleep(3)
 
 

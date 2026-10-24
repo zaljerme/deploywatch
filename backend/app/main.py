@@ -1,4 +1,7 @@
+import json
+import logging
 import secrets
+import time
 from datetime import timedelta
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -13,6 +16,39 @@ from app.models import Check, Incident, Monitor
 from app.schemas import MonitorInput
 
 app = FastAPI(title="DeployWatch", version="0.1.0")
+logger = logging.getLogger("deploywatch.api")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+
+@app.middleware("http")
+async def request_log(request: Request, call_next):
+    started = time.monotonic()
+    response = await call_next(request)
+    logger.info(
+        json.dumps(
+            {
+                "event": "request_completed",
+                "method": request.method,
+                "status_code": response.status_code,
+                "duration_ms": round((time.monotonic() - started) * 1000),
+            }
+        )
+    )
+    return response
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request, exc):
+    logger.error(json.dumps({"event": "request_failed", "exception_type": type(exc).__name__}))
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "internal_error",
+                "message": "An internal error occurred",
+            }
+        },
+    )
 
 
 @app.exception_handler(HTTPException)

@@ -25,7 +25,7 @@ def record_result(session, monitor: Monitor, result, checked_at):
         if incident:
             incident.resolved_at = checked_at
     else:
-        monitor.failure_count += 1
+        monitor.failure_count = min(monitor.failure_count + 1, 3)
         if monitor.failure_count >= 3 and incident is None:
             # Include the current check via autoflush, then find the start of this failure run.
             recent = session.scalars(
