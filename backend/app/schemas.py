@@ -11,7 +11,11 @@ class MonitorInput(BaseModel):
     timeout_seconds: int = Field(default=5, ge=1, le=30)
     expected_status: int = Field(default=200, ge=100, le=599)
     paused: bool = False
-    repository: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+    repository: str | None = Field(
+        default=None,
+        max_length=201,
+        pattern=r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*$",
+    )
 
     @field_validator("url")
     @classmethod
