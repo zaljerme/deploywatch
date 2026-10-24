@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: deploywatch
+      POSTGRES_PASSWORD: deploywatch
+      POSTGRES_DB: deploywatch
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U deploywatch]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:5432:5432"
+  migrate:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://deploywatch:deploywatch@db:5432/deploywatch
+    command: [alembic, upgrade, head]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://deploywatch:deploywatch@db:5432/deploywatch
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://deploywatch:deploywatch@db:5432/deploywatch
+    command: [python, -m, app.worker]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  demo:
+    build: ./backend
+    environment:
+      ENVIRONMENT: development
+    command: [uvicorn, app.demo:app, --host, "0.0.0.0", --port, "8001"]
+    ports:
+      - "127.0.0.1:8001:8001"
+volumes:
+  postgres_data:
