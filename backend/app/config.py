@@ -1,14 +1,14 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str = "postgresql+psycopg://deploywatch:deploywatch@localhost:5432/deploywatch"
-    api_token: str = "local-development-token-change-me"
+    api_token: str = Field(default="local-development-token-change-me", min_length=16, max_length=512)
     environment: str = "development"
     allow_demo: bool = False
     demo_host: Literal["demo", "127.0.0.1"] = "demo"

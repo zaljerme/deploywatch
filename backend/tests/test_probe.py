@@ -20,6 +20,8 @@ from app.schemas import MonitorInput
         "::ffff:8.8.8.8",
         "192.168.0.1",
         "100.64.0.1",
+        "2002:7f00:1::",
+        "64:ff9b::7f00:1",
     ],
 )
 async def test_private_destinations_blocked(monkeypatch, address):

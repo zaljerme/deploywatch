@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import timedelta
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from app.config import settings
 from app.db import SessionLocal, utcnow
@@ -67,11 +67,6 @@ async def main():
                 )
             )
             await asyncio.sleep(3)
-
-
-def health():
-    with SessionLocal() as session:
-        session.execute(text("SELECT 1"))
 
 
 if __name__ == "__main__":

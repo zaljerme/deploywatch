@@ -7,8 +7,10 @@ from datetime import timedelta
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.db import get_session, utcnow
@@ -23,7 +25,10 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 @app.middleware("http")
 async def request_log(request: Request, call_next):
     started = time.monotonic()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        response = await unexpected_error(request, exc)
     logger.info(
         json.dumps(
             {
@@ -51,7 +56,7 @@ async def unexpected_error(request, exc):
     )
 
 
-@app.exception_handler(HTTPException)
+@app.exception_handler(StarletteHTTPException)
 async def http_error(request, exc):
     return JSONResponse(
         status_code=exc.status_code,
@@ -82,9 +87,12 @@ async def validation_error(request, exc):
     )
 
 
-def authorize(request: Request):
-    supplied = request.headers.get("authorization", "")
-    if not secrets.compare_digest(supplied, f"Bearer {settings().api_token}"):
+security = HTTPBearer(auto_error=False)
+
+
+def authorize(credentials: HTTPAuthorizationCredentials | None = Depends(security)):
+    supplied = credentials.credentials if credentials else ""
+    if not secrets.compare_digest(supplied.encode(), settings().api_token.encode()):
         raise HTTPException(401, "A valid bearer token is required")
 
 
@@ -108,6 +116,7 @@ def live():
 def ready(session: Session = Depends(get_session)):
     try:
         session.execute(text("SELECT 1"))
+        session.execute(select(Monitor.id).limit(1))
     except Exception:
         raise HTTPException(503, "Database unavailable")
     return {"status": "ok"}
@@ -191,3 +200,4 @@ def history(
         "uptime_percent": round(successes / total * 100, 2) if total else None,
         "since": since,
     }
+

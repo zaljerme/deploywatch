@@ -17,6 +17,25 @@ class UnsafeDestination(ValueError):
     pass
 
 
+def is_public_address(address: str):
+    ip = ipaddress.ip_address(address)
+    if not ip.is_global or "%" in address:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address):
+        # Transition mechanisms can embed a private IPv4 destination in a global IPv6 address.
+        if ip.ipv4_mapped or ip.sixtofour or ip.teredo:
+            return False
+        if any(
+            ip in network
+            for network in (
+                ipaddress.ip_network("64:ff9b::/96"),
+                ipaddress.ip_network("64:ff9b:1::/48"),
+            )
+        ):
+            return False
+    return True
+
+
 @dataclass(frozen=True)
 class ProbeResult:
     success: bool
@@ -38,14 +57,7 @@ async def resolve_destination(url: str, config: Settings):
         raise UnsafeDestination("port is not allowed")
     records = await asyncio.get_running_loop().getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
     addresses = sorted({record[4][0] for record in records})
-    if not addresses or (
-        not demo
-        and any(
-            not ipaddress.ip_address(address).is_global
-            or getattr(ipaddress.ip_address(address), "ipv4_mapped", None) is not None
-            for address in addresses
-        )
-    ):
+    if not addresses or (not demo and any(not is_public_address(address) for address in addresses)):
         raise UnsafeDestination("destination must resolve exclusively to public addresses")
     return addresses, port
 

@@ -58,3 +58,31 @@ def test_delete_cascades_and_target_edit_guard(factory):
     with factory() as session:
         assert session.query(Check).count() == session.query(Incident).count() == 0
     app.dependency_overrides.clear()
+
+
+def test_uptime_aggregate_is_independent_of_pagination(factory):
+    from datetime import timedelta
+
+    from app.db import utcnow
+    from app.models import Monitor
+    from tests.test_engine import OK
+
+    monitor_id = add_monitor(factory)
+    with factory.begin() as session:
+        monitor = session.get(Monitor, monitor_id)
+        for index, result in enumerate([OK, FAIL, OK, FAIL]):
+            record_result(session, monitor, result, utcnow() - timedelta(seconds=10 - index))
+    with client_for(factory) as client:
+        first = client.get(f"/api/monitors/{monitor_id}/history?limit=2").json()
+        assert first["sample_count"] == 4
+        assert first["uptime_percent"] == 50
+        assert len(first["checks"]) == 2
+        second = client.get(
+            f"/api/monitors/{monitor_id}/history?limit=2&before_id={first['next_before_id']}"
+        ).json()
+        assert second["uptime_percent"] == 50
+        assert not set(row["id"] for row in first["checks"]) & set(
+            row["id"] for row in second["checks"]
+        )
+        assert second["next_before_id"] is None
+    app.dependency_overrides.clear()
